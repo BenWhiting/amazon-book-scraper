@@ -1,5 +1,6 @@
 #!/user/bin/env python3
 import click
+import amazon
 
 @click.command()
 @click.option(
@@ -9,15 +10,14 @@ import click
     default=""
 )
 @click.option(
-    '--maxpages', '-m',
+    '--maxproducts', '-m',
     type=int,
     help='Max number of pages Scraped',
     default=10
 )
-def main(url, maxpages): 
-    print(url)
-    print(maxpages)
-
+def main(url, maxproducts): 
+    conn = amazon.Connection()
+    conn.search(url, maxproducts)
 
 if __name__ == "__main__":
     # TODO: This will show up as an error due to click,

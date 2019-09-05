@@ -1,6 +1,5 @@
 from .product import Product
 import csv
-from .search import *
 
 class Products(object):
     def __init__(self, product_dict_list=[]):
