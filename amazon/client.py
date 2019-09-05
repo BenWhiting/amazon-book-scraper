@@ -2,8 +2,16 @@ import requests
 import time
 
 _HOST_URL = "www.amazon.com"
-_DEFAULT_USER_AGENT = ""
-_CHROME_DEKSTOP_USER_AGENT = ""
+
+_DEFAULT_USER_AGENT = 'Mozilla/5.0 (Linux; Android 7.0; \
+SM-A520F Build/NRD90M; wv) AppleWebKit/537.36 \
+(KHTML, like Gecko) Version/4.0 \
+Chrome/65.0.3325.109 Mobile Safari/537.36'
+
+_CHROME_DESKTOP_USER_AGENT = 'Mozilla/5.0 (Macintosh; \
+Intel Mac OS X 10_13_5) AppleWebKit/537.36 (KHTML, like Gecko) \
+Chrome/67.0.3396.79 Safari/537.36'
+
 _ACCEPT = "text/html,application/xhtml+xml,\
     application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"
 
@@ -12,7 +20,7 @@ _WAIT_TIME_BETWEEN_REQUESTS = 1
 
 _USER_AGENT_LIST = [
     _DEFAULT_USER_AGENT,
-    _CHROME_DEKSTOP_USER_AGENT,
+    _CHROME_DESKTOP_USER_AGENT,
 ]
 
 class Client(object):
@@ -92,10 +100,8 @@ class Client(object):
             raise ValueError ("no url provided")
         self._update_headers(search_url)
 
-        while len(self.product_dict_list) < max_product:
-
-            # get the html of the specified page
-            page = self._get_page_html(search_url)
-            print(page)
+        # get the html of the specified page
+        page = self._get_page_html(search_url)
+        print(page)
 
         return self.product_dict_list
