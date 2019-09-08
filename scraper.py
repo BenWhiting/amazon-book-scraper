@@ -9,15 +9,10 @@ import amazon
     help='An Amazon result Page',
     default=""
 )
-@click.option(
-    '--maxproducts', '-m',
-    type=int,
-    help='Max number of pages Scraped',
-    default=10
 )
-def main(url, maxproducts): 
+def main(url): 
     conn = amazon.Connection()
-    conn.search(url, maxproducts)
+    conn.search(url)
 
 if __name__ == "__main__":
     # TODO: This will show up as an error due to click,

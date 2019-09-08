@@ -1,7 +1,9 @@
 import requests
 import time
+from bs4 import BeautifulSoup
 
 _HOST_URL = "www.amazon.com"
+_HTML_PARSER = "html.parser"
 
 _DEFAULT_USER_AGENT = 'Mozilla/5.0 (Linux; Android 7.0; \
 SM-A520F Build/NRD90M; wv) AppleWebKit/537.36 \
@@ -15,7 +17,57 @@ Chrome/67.0.3396.79 Safari/537.36'
 _ACCEPT = "text/html,application/xhtml+xml,\
     application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"
 
-_MAX_TRIAL_REQUESTS = 5
+_CSS_SELECTORS_DESKTOP = {
+    "product": "ul > li.s-result-item > div.s-item-container",
+    "title": "a.s-access-detail-page > h2",
+    "rating": "i.a-icon-star > span",
+    "review_nb": "div.a-column.a-span5.a-span-last > \
+                div.a-row.a-spacing-mini > \
+                a.a-size-small.a-link-normal.a-text-normal",
+    "url": "div.a-row.a-spacing-small > div.a-row.a-spacing-none > a[href]",
+    "img": "div.a-column.a-span12.a-text-center > a.a-link-normal.a-text-normal > img[src]",
+    "next_page_url": "a#pagnNextLink",
+}
+_CSS_SELECTORS_DESKTOP_2 = {
+    "product": "div.s-result-list.sg-row > div.s-result-item",
+    "title": "div div.sg-row  h5 > span",
+    "rating": "div div.sg-row .a-spacing-top-mini i span",
+    "review_nb": "div div.sg-row .a-spacing-top-mini span.a-size-small",
+    "url": "div div a.a-link-normal",
+    "img": "img[src]",
+    "next_page_url": "li.a-last > a[href]",
+}
+
+_CSS_SELECTORS_MOBILE = {
+    "product": "#resultItems > li",
+    "title": "a > div > div.sx-table-detail > h5 > span",
+    "rating": "a > div > div.sx-table-detail > \
+               div.a-icon-row.a-size-small > i > span",
+    "review_nb": "a > div > div.sx-table-detail > \
+                  div.a-icon-row.a-size-small > span",
+    "url": "a[href]",
+    "img": "img[src]",
+    "next_page_url": "ul.a-pagination > li.a-last > a[href]",
+}
+
+_CSS_SELECTORS_MOBILE_GRID = {
+    "product": "#grid-atf-content > li > div.s-item-container",
+    "title": "a > div > h5.sx-title > span",
+    "rating": "a > div > div.a-icon-row.a-size-mini > i > span",
+    "review_nb": "a > div > div.a-icon-row.a-size-mini > span",
+    "url": "a[href]",
+    "img": "img[src]",
+    "next_page_url": "ul.a-pagination > li.a-last > a[href]",
+}
+
+_CSS_SELECTOR_LIST = [
+                        _CSS_SELECTORS_DESKTOP,
+                        _CSS_SELECTORS_DESKTOP_2,
+                        _CSS_SELECTORS_MOBILE,
+                        _CSS_SELECTORS_MOBILE_GRID,
+                     ]
+
+_MAX_TRIAL_REQUESTS = 10
 _WAIT_TIME_BETWEEN_REQUESTS = 1
 
 _USER_AGENT_LIST = [
@@ -47,10 +99,13 @@ class Client(object):
 
     def _check_page(self, html_content):
         if "Sign in for the best experience" in html_content:
+            print("Requested a sign in")
             valid_page = False
         elif "The request could not be satisfied." in html_content:
+            print("Requested not satisfied")
             valid_page = False
         elif "Robot Check" in html_content:
+            print("Robot Check")
             valid_page = False
         else:
             valid_page = True
@@ -85,6 +140,7 @@ class Client(object):
                 valid_page = False
 
             if valid_page:
+                print("Utilizing agent: {}".format(self.headers['User-Agent']))
                 break
 
             self._change_user_agent()
@@ -95,13 +151,58 @@ class Client(object):
                 is a CAPTCHA? Check products.last_html_page')
         return res.text
 
-    def get_products(self, search_url="", max_product=100):
+    def get_products(self, search_url="", max_page_searches=1):
         if search_url == "":
             raise ValueError ("no url provided")
         self._update_headers(search_url)
 
         # get the html of the specified page
         page = self._get_page_html(search_url)
-        print(page)
 
-        return self.product_dict_list
+        self._extract_page(page)
+
+        return
+
+    def _get_title(self, product):
+        css_selectors = [
+            'h5 span',
+            "a.s-access-detail-page > h2",
+            "div div.sg-row h5 > span" 
+        ]
+
+        for selector in css_selectors:
+            title = _css_select(product, selector)
+            if title: 
+                break
+
+        if not title:
+            print('failed to extract title')
+
+        return title    
+
+    def _extract_page(self, page):
+        soup = BeautifulSoup(page, _HTML_PARSER)
+        selector = 0
+        for css_selector_dict in _CSS_SELECTOR_LIST:
+            selector += 1
+            css_selector = css_selector_dict.get("product", "")
+            products = soup.select(css_selector)
+            if len(products) >= 1:
+                print("No products")
+                break
+
+        # For each product of the result page
+        for product in products:
+            product_dict = {}
+            product_dict['title'] = self._get_title(product)
+            print("Extracting {}".format(product_dict['title'][:80]))
+
+        return
+
+def _css_select(soup, css_selector):
+    selection = soup.select(css_selector)
+    retour = ""
+    if len(selection) > 0:
+        if hasattr(selection[0], 'text'):
+            retour = selection[0].text.strip()
+    return retour
