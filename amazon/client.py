@@ -1,22 +1,32 @@
 import requests
+import uuid 
 import time
+import re
+
 from bs4 import BeautifulSoup
 
 _HOST_URL = "www.amazon.com"
 _HTML_PARSER = "html.parser"
 
-_DEFAULT_USER_AGENT = 'Mozilla/5.0 (Linux; Android 7.0; \
+################## USER-AGENT HEADERS ##################
+_DEFAULT = 'Mozilla/5.0 (Linux; Android 7.0; \
 SM-A520F Build/NRD90M; wv) AppleWebKit/537.36 \
 (KHTML, like Gecko) Version/4.0 \
 Chrome/65.0.3325.109 Mobile Safari/537.36'
 
-_CHROME_DESKTOP_USER_AGENT = 'Mozilla/5.0 (Macintosh; \
+_CHROME_DESKTOP = 'Mozilla/5.0 (Macintosh; \
 Intel Mac OS X 10_13_5) AppleWebKit/537.36 (KHTML, like Gecko) \
 Chrome/67.0.3396.79 Safari/537.36'
 
 _ACCEPT = "text/html,application/xhtml+xml,\
     application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"
 
+_USER_AGENT_LIST = [
+    _DEFAULT,
+    _CHROME_DESKTOP,
+]
+
+################## CSS SELECTORS ##################
 _CSS_SELECTORS_DESKTOP = {
     "product": "ul > li.s-result-item > div.s-item-container",
     "title": "a.s-access-detail-page > h2",
@@ -67,14 +77,15 @@ _CSS_SELECTOR_LIST = [
                         _CSS_SELECTORS_MOBILE_GRID,
                      ]
 
-_MAX_TRIAL_REQUESTS = 10
+################## SOUP SCANS ###############
+_SPAN_CLASS_TITLE = 'span[class="a-size-medium a-color-base a-text-normal"]'
+_SPAN_SPONSERED_TITLE = 'div[data-component-type="sp-sponsored-result"]' 
+
+################## NUMBER CONSTS ##################
+_MAX_TRIAL_REQUESTS = 25
 _WAIT_TIME_BETWEEN_REQUESTS = 1
 
-_USER_AGENT_LIST = [
-    _DEFAULT_USER_AGENT,
-    _CHROME_DESKTOP_USER_AGENT,
-]
-
+################## CODE ##################
 class Client(object):
     def __init__(self):
         self.session = requests.session()
@@ -98,14 +109,18 @@ class Client(object):
         self.headers['Host'] = self.base_url.split("://")[1].split("/")[0]
 
     def _check_page(self, html_content):
-        if "Sign in for the best experience" in html_content:
-            print("Requested a sign in")
+        sign_in_msg = "Sign in for the best experience"
+        request_not_satisfied_msg = "The request could not be satisfied."
+        robot_check_msg = "Robot Check"
+
+        if sign_in_msg in html_content:
+            print(sign_in_msg)
             valid_page = False
-        elif "The request could not be satisfied." in html_content:
-            print("Requested not satisfied")
+        elif request_not_satisfied_msg in html_content:
+            print(request_not_satisfied_msg)
             valid_page = False
-        elif "Robot Check" in html_content:
-            print("Robot Check")
+        elif robot_check_msg in html_content:
+            print(robot_check_msg)
             valid_page = False
         else:
             valid_page = True
@@ -164,18 +179,31 @@ class Client(object):
         return
 
     def _get_title(self, product):
-        css_selectors = [
-            'h5 span',
-            "a.s-access-detail-page > h2",
-            "div div.sg-row h5 > span" 
+        main_css_selectors = [
+            _SPAN_CLASS_TITLE
         ]
 
-        for selector in css_selectors:
+        for selector in main_css_selectors:
             title = _css_select(product, selector)
             if title: 
+                m = re.search('(<span class=\"a-size-medium a-color-base a-text-normal\">)(.*)(</span>)', str(title))
+                title = m.group(2)
+                print(title)
                 break
 
         if not title:
+            backup_css_selectors = [
+                _SPAN_SPONSERED_TITLE
+            ]
+            for selector in backup_css_selectors:
+                title = _css_select(product, selector)
+                if title: 
+                    print("Title found... ignoring results due to sponsored")
+                    return ""
+
+            f = open('./failures/{}'.format(uuid.uuid1()), 'w')
+            f.write(str(product))
+            f.close()
             print('failed to extract title')
 
         return title    
@@ -185,24 +213,19 @@ class Client(object):
         selector = 0
         for css_selector_dict in _CSS_SELECTOR_LIST:
             selector += 1
+
             css_selector = css_selector_dict.get("product", "")
             products = soup.select(css_selector)
             if len(products) >= 1:
-                print("No products")
+                print("Selector number {} successfully found products".format(selector))
                 break
 
         # For each product of the result page
         for product in products:
             product_dict = {}
             product_dict['title'] = self._get_title(product)
-            print("Extracting {}".format(product_dict['title'][:80]))
 
         return
 
 def _css_select(soup, css_selector):
-    selection = soup.select(css_selector)
-    retour = ""
-    if len(selection) > 0:
-        if hasattr(selection[0], 'text'):
-            retour = selection[0].text.strip()
-    return retour
+    return soup.select(css_selector)

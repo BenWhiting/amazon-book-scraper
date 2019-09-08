@@ -21,3 +21,4 @@ the CSS, and it will attempt to find all intsances of products on the page.
 
 * click 7.0
 * beautifulsoup4 4.8.0
+* pytest 5.1.2
