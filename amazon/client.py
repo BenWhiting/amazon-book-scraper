@@ -107,17 +107,23 @@ class Client(object):
         if self._valid_url(root_url):
             #Create all URLS
             url_list = []
+            print("creating all urls")
             for i in range(max_page_searches):
                 url = self._next_url(root_url, i)
                 print(url)
                 url_list.append(url)
 
+            print("finding all products")
             for url in url_list:
+                print("URL {}".format(url))
                 self._update_headers(url)
 
                 # get the html of the specified page
                 page = self._get_page_html(url)
-
+                if not page:
+                    print("nothing to see here...")
+                    break
+                    
                 # get all pages requested
                 self._extract_page(page)
         else:

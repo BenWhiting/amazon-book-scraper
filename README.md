@@ -40,9 +40,11 @@ Example:
 
 ### How to run
 
-`python3 scraper.py --url "https://www.amazon.com/s?k=python+scraping&page=1&qid=1567979575&ref=sr_pg_1"`
+`python3 scraper.py --url "https://www.amazon.com/s?k=python+scraping&page=1&qid=1567979575&ref=sr_pg_1" -m 5`
 
-WARNING: Include quotes around the URL or the path will be malformed
+WARNING: 
+    1. Include quotes around the URL or the path will be malformed
+    2. If you give the scraper more pages than amazon has, it will eventually pull data it shouldn't - Will work on this at a future date
 
 ## Build Dependencies
 
