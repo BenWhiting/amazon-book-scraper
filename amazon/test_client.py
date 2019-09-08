@@ -1,3 +1,4 @@
+from amazon.client  import Client
 from amazon.client  import _css_select
 from amazon.client  import _SPAN_CLASS_TITLE
 from amazon.client  import _HTML_PARSER
@@ -208,3 +209,10 @@ def test_css_select_sponsered():
     if len(title) != 1:
         assert False 
     return
+
+def test_valid_url():
+    cli = Client()
+    url = 'https://www.amazon.com/s?k=python+scraping&page=1&qid=1567979575&ref=sr_pg_1'
+    valid = cli._valid_url(url)
+    if not valid:
+        assert False

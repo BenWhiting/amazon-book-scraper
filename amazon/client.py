@@ -98,6 +98,35 @@ class Client(object):
         self.product_dict_list = []
         self.html_pages = []
 
+    def get_products(self, url="", max_page_searches=1):
+        if self._valid_url(url):
+            for i in range(max_page_searches):
+                self._update_headers(url)
+
+                # get the html of the specified page
+                page = self._get_page_html(url)
+
+                # get all pages requested
+                self._extract_page(page)
+        else:
+            raise ValueError("bad URL, please check format")
+        return
+
+    def _valid_url(self, url): 
+        print(url)
+        valid = False
+        if url == "":
+            print("here")
+            return
+        regex = '(https://{}).*(&page=).*(sr_pg_)'.format(_HOST_URL)
+        m = re.search(regex, url)
+        if m :
+            if m.lastindex != 3:
+                return
+        valid = True
+        return valid
+
+
     def _change_user_agent(self):
         index = (self.current_user_agent_index + 1) % len(_USER_AGENT_LIST)
         self.headers['User-Agent'] = _USER_AGENT_LIST[index]
@@ -166,18 +195,27 @@ class Client(object):
                 is a CAPTCHA? Check products.last_html_page')
         return res.text
 
-    def get_products(self, search_url="", max_page_searches=1):
-        if search_url == "":
-            raise ValueError ("no url provided")
-        self._update_headers(search_url)
+  
+    def _extract_page(self, page):
+        soup = BeautifulSoup(page, _HTML_PARSER)
+        selector = 0
+        for css_selector_dict in _CSS_SELECTOR_LIST:
+            selector += 1
 
-        # get the html of the specified page
-        page = self._get_page_html(search_url)
+            css_selector = css_selector_dict.get("product", "")
+            products = soup.select(css_selector)
+            if len(products) >= 1:
+                print("Selector number {} successfully found products".format(selector))
+                break
 
-        self._extract_page(page)
+        # For each product of the result page
+        for product in products:
+            product_dict = {}
+            product_dict['title'] = self._get_title(product)
 
         return
 
+################## HTML details ##################
     def _get_title(self, product):
         main_css_selectors = [
             _SPAN_CLASS_TITLE
@@ -186,7 +224,8 @@ class Client(object):
         for selector in main_css_selectors:
             title = _css_select(product, selector)
             if title: 
-                m = re.search('(<span class=\"a-size-medium a-color-base a-text-normal\">)(.*)(</span>)', str(title))
+                regex = '(<span class=\"a-size-medium a-color-base a-text-normal\">)(.*)(</span>)'
+                m = re.search(regex, str(title))
                 title = m.group(2)
                 print(title)
                 break
@@ -206,26 +245,7 @@ class Client(object):
             f.close()
             print('failed to extract title')
 
-        return title    
-
-    def _extract_page(self, page):
-        soup = BeautifulSoup(page, _HTML_PARSER)
-        selector = 0
-        for css_selector_dict in _CSS_SELECTOR_LIST:
-            selector += 1
-
-            css_selector = css_selector_dict.get("product", "")
-            products = soup.select(css_selector)
-            if len(products) >= 1:
-                print("Selector number {} successfully found products".format(selector))
-                break
-
-        # For each product of the result page
-        for product in products:
-            product_dict = {}
-            product_dict['title'] = self._get_title(product)
-
-        return
+        return title  
 
 def _css_select(soup, css_selector):
     return soup.select(css_selector)

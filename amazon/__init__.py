@@ -5,6 +5,6 @@ class Connection(object):
     def __init__(self, URL=""):
         self.url = URL
 
-    def search(self,  max_product=100):
+    def search(self,  max_pages=1):
         cli = Client()
-        cli.get_products(self.url, max_product)
+        cli.get_products(self.url, max_pages)
