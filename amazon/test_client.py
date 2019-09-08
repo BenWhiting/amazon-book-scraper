@@ -1,6 +1,6 @@
 from amazon.client  import Client
 from amazon.client  import _css_select
-from amazon.client  import _SPAN_CLASS_TITLE
+from amazon.client  import _SPAN_CLASS_TITLE_MEDIUM
 from amazon.client  import _HTML_PARSER
 from amazon.client  import _SPAN_SPONSERED_TITLE
 import pytest
@@ -114,7 +114,7 @@ def test_css_select_valid():
     """
 
     test_html_parser = _HTML_PARSER
-    test_css_select = _SPAN_CLASS_TITLE
+    test_css_select = _SPAN_CLASS_TITLE_MEDIUM
     soup = BeautifulSoup(test_page, test_html_parser)
 
     title = _css_select(soup, test_css_select)

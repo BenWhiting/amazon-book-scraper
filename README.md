@@ -15,7 +15,7 @@ a [non-profit][non-profit], so utilizing the Amazon [API][api] which required AW
 
 This code base currently takes an amazon URL and scrapes the HTML from the page. It does so by
 loop through multiple client types (desktop/mobile), searches through those client types, scans
-the CSS, and it will attempt to find all intsances of products on the page.
+the HTML, find all intsances of products on the page and will print them.
 
 NOTE: sponsored books will be ignored - for now
 

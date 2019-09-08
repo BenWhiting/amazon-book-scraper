@@ -78,8 +78,13 @@ _CSS_SELECTOR_LIST = [
                      ]
 
 ################## SOUP SCANS ###############
-_SPAN_CLASS_TITLE = 'span[class="a-size-medium a-color-base a-text-normal"]'
+_SPAN_CLASS_TITLE_MEDIUM = 'span[class="a-size-medium a-color-base a-text-normal"]'
+_SPAN_CLASS_TITLE_BASE = 'span[class="a-size-base a-color-base a-text-normal"]'
 _SPAN_SPONSERED_TITLE = 'div[data-component-type="sp-sponsored-result"]' 
+
+################## SCANNING REGEX ##################
+_BASE_URL = '(https://www.amazon.com)(.*)(&page=)([1-9]\d*)(&+.*)(sr_pg_)([1-9]\d*)'
+_VALID_URL = '(https://www.amazon.com).*(&page=1).*(sr_pg_1)'
 
 ################## NUMBER CONSTS ##################
 _MAX_TRIAL_REQUESTS = 25
@@ -98,9 +103,16 @@ class Client(object):
         self.product_dict_list = []
         self.html_pages = []
 
-    def get_products(self, url="", max_page_searches=1):
-        if self._valid_url(url):
+    def get_products(self, root_url="", max_page_searches=0):
+        if self._valid_url(root_url):
+            #Create all URLS
+            url_list = []
             for i in range(max_page_searches):
+                url = self._next_url(root_url, i)
+                print(url)
+                url_list.append(url)
+
+            for url in url_list:
                 self._update_headers(url)
 
                 # get the html of the specified page
@@ -112,17 +124,33 @@ class Client(object):
             raise ValueError("bad URL, please check format")
         return
 
+    def _next_url(self, url, index):
+        updated_url = ""
+        m = re.search(_BASE_URL, url)
+        if m:
+            if m.lastindex != 7 :
+                return updated_url
+        updated_url = "{}{}{}{}{}{}{}".format(
+            m.group(1),
+            m.group(2),
+            m.group(3),
+            int(m.group(4)) + index,
+            m.group(5),
+            m.group(6),
+            int(m.group(7)) + index)
+        return updated_url
+
     def _valid_url(self, url): 
-        print(url)
         valid = False
         if url == "":
-            print("here")
-            return
-        regex = '(https://{}).*(&page=).*(sr_pg_)'.format(_HOST_URL)
-        m = re.search(regex, url)
+            return valid
+        m = re.search(_VALID_URL, url)
         if m :
             if m.lastindex != 3:
-                return
+                return valid
+        else:
+            print("not found")
+            return
         valid = True
         return valid
 
@@ -218,15 +246,16 @@ class Client(object):
 ################## HTML details ##################
     def _get_title(self, product):
         main_css_selectors = [
-            _SPAN_CLASS_TITLE
+            _SPAN_CLASS_TITLE_MEDIUM,
+            _SPAN_CLASS_TITLE_BASE
         ]
 
         for selector in main_css_selectors:
             title = _css_select(product, selector)
             if title: 
-                regex = '(<span class=\"a-size-medium a-color-base a-text-normal\">)(.*)(</span>)'
-                m = re.search(regex, str(title))
-                title = m.group(2)
+                #regex = '(<span class=\"a-size-medium a-color-base a-text-normal\">)(.*)(</span>)'
+                #m = re.search(regex, str(title))
+                #title = m.group(2)
                 print(title)
                 break
 
