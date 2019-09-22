@@ -5,6 +5,6 @@ class Connection(object):
     def __init__(self, URL=""):
         self.url = URL
 
-    def search(self,  max_pages=0):
+    def scrape_search_pages(self):
         cli = Client()
-        cli.get_products(self.url, max_pages)
+        return cli.initial_scan(self.url)

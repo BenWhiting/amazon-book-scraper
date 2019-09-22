@@ -2,7 +2,9 @@ import requests
 import uuid 
 import time
 import re
-
+import html
+from html.parser import HTMLParser
+from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
 _HOST_URL = "www.amazon.com"
@@ -82,10 +84,6 @@ _SPAN_CLASS_TITLE_MEDIUM = 'span[class="a-size-medium a-color-base a-text-normal
 _SPAN_CLASS_TITLE_BASE = 'span[class="a-size-base a-color-base a-text-normal"]'
 _SPAN_SPONSERED_TITLE = 'div[data-component-type="sp-sponsored-result"]' 
 
-################## SCANNING REGEX ##################
-_BASE_URL = '(https://www.amazon.com)(.*)(&page=)([1-9]\d*)(&+.*)(sr_pg_)([1-9]\d*)'
-_VALID_URL = '(https://www.amazon.com).*(&page=1).*(sr_pg_1)'
-
 ################## NUMBER CONSTS ##################
 _MAX_TRIAL_REQUESTS = 25
 _WAIT_TIME_BETWEEN_REQUESTS = 1
@@ -100,14 +98,38 @@ class Client(object):
             'User-Agent': _USER_AGENT_LIST[0],
             'Accept': _ACCEPT,
         }
-        self.product_dict_list = []
-        self.html_pages = []
 
-    def get_products(self, root_url="", max_page_searches=0):
-        if self._valid_url(root_url):
-            #Create all URLS
-            url_list = []
-            print("creating all urls")
+    def initial_scan(self, root_url=""):
+        # create all URLS
+        next_url = root_url
+        print("Starting at URL: {}".format(root_url))
+
+        # get all products
+        while True:
+            # update headers
+            self._update_headers(next_url)
+
+            # get the page
+            page = self._get_page_html(next_url)
+            if not page:
+                print("nothing to see here, trying again")
+                continue
+                
+            #extract next page
+            next_search = self._extract_next_page_url(page)
+            if next_search == "":
+                print("no more pages found")
+                break
+            unescaped_next_search = html.unescape(next_search)
+            url = urlparse("{}{}".format(self.base_url, unescaped_next_search))
+            
+            # purge url
+            next_url = url.geturl()
+            print("Next url: {}".format(next_url))
+            
+                
+                
+            '''
             for i in range(max_page_searches):
                 url = self._next_url(root_url, i)
                 print(url)
@@ -125,41 +147,9 @@ class Client(object):
                     break
                     
                 # get all pages requested
-                self._extract_page(page)
-        else:
-            raise ValueError("bad URL, please check format")
+                self._extract_products(page)
+            '''
         return
-
-    def _next_url(self, url, index):
-        updated_url = ""
-        m = re.search(_BASE_URL, url)
-        if m:
-            if m.lastindex != 7 :
-                return updated_url
-        updated_url = "{}{}{}{}{}{}{}".format(
-            m.group(1),
-            m.group(2),
-            m.group(3),
-            int(m.group(4)) + index,
-            m.group(5),
-            m.group(6),
-            int(m.group(7)) + index)
-        return updated_url
-
-    def _valid_url(self, url): 
-        valid = False
-        if url == "":
-            return valid
-        m = re.search(_VALID_URL, url)
-        if m :
-            if m.lastindex != 3:
-                return valid
-        else:
-            print("not found")
-            return
-        valid = True
-        return valid
-
 
     def _change_user_agent(self):
         index = (self.current_user_agent_index + 1) % len(_USER_AGENT_LIST)
@@ -229,25 +219,35 @@ class Client(object):
                 is a CAPTCHA? Check products.last_html_page')
         return res.text
 
-  
-    def _extract_page(self, page):
-        soup = BeautifulSoup(page, _HTML_PARSER)
+################## Extractor details ##################
+    def _extract_next_page_url(self, page):
+        url = ""
+        pageSoup = BeautifulSoup(page, _HTML_PARSER)
+        f = open('./failures/page-{}'.format(uuid.uuid1()), 'w')
+        f.write(str(pageSoup))
+        f.write("########\n")
         selector = 0
+        successful = False
         for css_selector_dict in _CSS_SELECTOR_LIST:
             selector += 1
-
-            css_selector = css_selector_dict.get("product", "")
-            products = soup.select(css_selector)
-            if len(products) >= 1:
-                print("Selector number {} successfully found products".format(selector))
+            css_selector = css_selector_dict.get("next_page_url", "")
+            next_page = pageSoup.select(css_selector)
+            if len(next_page) >= 1:
+                hrefSoup = BeautifulSoup(str(next_page[0]), _HTML_PARSER)
+                for a in hrefSoup.find_all('a', href=True):
+                    if a.text != "":
+                        f.write(str(selector))
+                        f.write("\n##########\n")
+                        f.write(css_selector)
+                        successful = True
+                        url = a['href']
                 break
-
-        # For each product of the result page
-        for product in products:
-            product_dict = {}
-            product_dict['title'] = self._get_title(product)
-
-        return
+            else:
+                print("can't find using selector {}".format(css_selector))
+        if not successful:
+            print("finding next page not successful")
+        f.close()
+        return url
 
 ################## HTML details ##################
     def _get_title(self, product):
@@ -275,7 +275,7 @@ class Client(object):
                     print("Title found... ignoring results due to sponsored")
                     return ""
 
-            f = open('./failures/{}'.format(uuid.uuid1()), 'w')
+            f = open('./failures/title-{}'.format(uuid.uuid1()), 'w')
             f.write(str(product))
             f.close()
             print('failed to extract title')
