@@ -27,7 +27,14 @@ _USER_AGENT_LIST = [
     _DEFAULT,
     _CHROME_DESKTOP,
 ]
+################## SCANNING REGEX ##################
+_BASE_URL = '(https://www.amazon.com)(.*)(&page=)([1-9]\d*)(&+.*)(sr_pg_)([1-9]\d*)'
+_MOBILE_URL = '(https://www.amazon.com)(.*)(&page=)([1-9]\d*)(&+.*)(is_pn_)([1-9]\d*)'
 
+_REGEX_NEXT_LIST = [
+    _BASE_URL,
+    _MOBILE_URL,
+]
 ################## CSS SELECTORS ##################
 _CSS_SELECTORS_DESKTOP = {
     "product": "ul > li.s-result-item > div.s-item-container",
@@ -98,6 +105,7 @@ class Client(object):
             'User-Agent': _USER_AGENT_LIST[0],
             'Accept': _ACCEPT,
         }
+        self.url_list = []
 
     def initial_scan(self, root_url=""):
         # create all URLS
@@ -106,10 +114,13 @@ class Client(object):
 
         # get all products
         while True:
+            if next_url == "":
+                break
             # update headers
             self._update_headers(next_url)
 
             # get the page
+            self.url_list.append(next_url)
             page = self._get_page_html(next_url)
             if not page:
                 print("nothing to see here, trying again")
@@ -125,31 +136,34 @@ class Client(object):
             
             # purge url
             next_url = url.geturl()
-            print("Next url: {}".format(next_url))
-            
-                
-                
-            '''
-            for i in range(max_page_searches):
-                url = self._next_url(root_url, i)
-                print(url)
-                url_list.append(url)
-
-            print("finding all products")
-            for url in url_list:
-                print("URL {}".format(url))
-                self._update_headers(url)
-
-                # get the html of the specified page
-                page = self._get_page_html(url)
-                if not page:
-                    print("nothing to see here...")
-                    break
-                    
-                # get all pages requested
-                self._extract_products(page)
-            '''
+            print("Next url: {}".format(next_url))   
+            next_url = self._update_url(next_url)
+            print("Updated Next url: {}".format(next_url))   
         return
+
+    def _update_url(self, url):
+        '''
+        Sometimes amazon returns a url where the pages 
+        do not match up, which can lead to odd behavior.
+        This will make sure they line up
+        '''
+        updated_url = ""
+        for regex_url in _REGEX_NEXT_LIST:
+            m = re.search(regex_url, url)
+            if m is not None:
+                if m.lastindex != 7 :
+                    continue
+
+                updated_url = "{}{}{}{}{}{}{}".format(
+                    m.group(1),
+                    m.group(2),
+                    m.group(3),
+                    int(m.group(4)),
+                    m.group(5),
+                    m.group(6),
+                    int(m.group(7)) + 1)
+                break
+        return updated_url
 
     def _change_user_agent(self):
         index = (self.current_user_agent_index + 1) % len(_USER_AGENT_LIST)
@@ -241,6 +255,8 @@ class Client(object):
                         f.write(css_selector)
                         successful = True
                         url = a['href']
+                        f.write("\n##########\n")
+                        f.write(url)
                 break
             else:
                 print("can't find using selector {}".format(css_selector))

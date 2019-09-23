@@ -7,4 +7,5 @@ class Connection(object):
 
     def scrape_search_pages(self):
         cli = Client()
-        return cli.initial_scan(self.url)
+        cli.initial_scan(self.url)
+        return  cli.url_list

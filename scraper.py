@@ -11,7 +11,8 @@ import amazon
 )
 def main(url): 
     conn = amazon.Connection(url)
-    products = conn.scrape_search_pages()
+    URLs = conn.scrape_search_pages()
+    print(URLs)
 
 if __name__ == "__main__":
     # TODO: This will show up as an error due to click,
